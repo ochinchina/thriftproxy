@@ -57,7 +57,7 @@ The thriftproxy will listen on the admin address to accept the restful call to a
     "proxies": [
         {
             "name": "test-1",
-            "backends": [ "nls-upm:6666" ]
+            "backends": [ "127.0.0.1:6666" ]
         }
     ]
 }
