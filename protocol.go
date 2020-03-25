@@ -40,7 +40,7 @@ func NewBinaryProtocol(framed bool) *BinaryProtocol {
 }
 
 func (bp *BinaryProtocol) BeginMessage(name string, msgType MessageType, seqId int) {
-	bp.WriteInt32(int(0x80010000 | msgType))
+	bp.WriteInt32(int(0x80010000 | int(msgType) ))
 	bp.WriteString(name)
 	bp.WriteInt32(seqId)
 }
