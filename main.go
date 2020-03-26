@@ -3,6 +3,7 @@ package main
 import (
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
+	"gopkg.in/natefinch/lumberjack.v2"
 	"gopkg.in/yaml.v3"
 	"os"
 )
@@ -17,6 +18,21 @@ func init() {
 
 	// Only log the warning severity or above.
 	log.SetLevel(log.DebugLevel)
+}
+
+func initLog(logFile string, strLevel string, logSize int, backups int) {
+	level, err := log.ParseLevel(strLevel)
+	if err != nil {
+		level = log.InfoLevel
+	}
+	log.SetLevel(level)
+	if len(logFile) <= 0 {
+		log.SetOutput(os.Stdout)
+	} else {
+		log.SetOutput(&lumberjack.Logger{Filename: logFile,
+			MaxSize:    logSize,
+			MaxBackups: backups})
+	}
 }
 
 type ProxiesConfigure struct {
@@ -56,6 +72,11 @@ func startProxies(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
+	strLevel := c.String("log-level")
+	fileName := c.String("log-file")
+	logSize := c.Int("log-size")
+	backups := c.Int("log-backups")
+	initLog(fileName, strLevel, logSize, backups)
 	proxyMgr := NewProxyMgr()
 	admin := NewAdmin(config.Admin.Addr, proxyMgr)
 	for _, proxy := range config.Proxies {
@@ -79,9 +100,28 @@ func main() {
 		Usage: "a proxy between thrift client and thrift backend servers",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
-				Name:    "config",
-				Aliases: []string{"c"},
-				Usage:   "Load configuration from `FILE`",
+				Name:     "config",
+				Aliases:  []string{"c"},
+				Required: true,
+				Usage:    "Load configuration from `FILE`",
+			},
+			&cli.StringFlag{
+				Name:  "log-file",
+				Usage: "log file name",
+			},
+			&cli.StringFlag{
+				Name:  "log-level",
+				Usage: "one of following level: Trace, Debug, Info, Warn, Error, Fatal, Panic",
+			},
+			&cli.IntFlag{
+				Name:  "log-size",
+				Usage: "size of log file in Megabytes",
+				Value: 50,
+			},
+			&cli.IntFlag{
+				Name:  "log-backups",
+				Usage: "number of log rotate files",
+				Value: 10,
 			},
 		},
 		Action: startProxies,
