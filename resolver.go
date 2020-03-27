@@ -127,11 +127,10 @@ func (r *Resolver) periodicalResolve() {
 
 		for _, hostname := range hostnames {
 			addrs, err := r.doResolve(hostname)
-			if err == nil {
-				r.addressResolved(hostname, addrs, err)
-			} else {
+			if err != nil {
 				log.WithFields(log.Fields{"hostname": hostname}).Error("Fail to resolve host to IP")
 			}
+			r.addressResolved(hostname, addrs, err)
 		}
 		time.Sleep(r.interval)
 	}
@@ -141,14 +140,14 @@ func (r *Resolver) addressResolved(hostname string, addrs []string, err error) {
 	r.Lock()
 	defer r.Unlock()
 	if entry, ok := r.hostIPs[hostname]; ok {
-		if !ok {
+		if err != nil {
 			entry.failed += 1
 			if entry.failed > 3 && len(entry.addrs) > 0 {
 				newAddrs := make([]string, 0)
 				removedAddrs := entry.addrs
-				entry.failed = 0
 				entry.addrs = newAddrs
 				log.WithFields(log.Fields{"hostname": hostname, "failed": entry.failed}).Error("the failed times for resolving hostname exceeds 3")
+				entry.failed = 0
 				go entry.callback(hostname, newAddrs, removedAddrs)
 			}
 		} else {
@@ -156,8 +155,10 @@ func (r *Resolver) addressResolved(hostname string, addrs []string, err error) {
 			removedAddrs := strArraySub(entry.addrs, addrs)
 			entry.failed = 0
 			entry.addrs = addrs
-			log.WithFields(log.Fields{"hostname": hostname, "newAddrs": newAddrs, "removedAddrs": removedAddrs}).Info("the ip address of host is changed")
-			go entry.callback(hostname, newAddrs, removedAddrs)
+			if len(newAddrs) > 0 || len(removedAddrs) > 0 {
+				log.WithFields(log.Fields{"hostname": hostname, "newAddrs": strings.Join(newAddrs, ","), "removedAddrs": strings.Join(removedAddrs, ",")}).Info("the ip address of host is changed")
+				go entry.callback(hostname, newAddrs, removedAddrs)
+			}
 		}
 	}
 }
@@ -177,7 +178,11 @@ func (r *Resolver) doResolve(addr string) ([]string, error) {
 
 	result := make([]string, 0)
 	for _, ip := range ips {
-		result = append(result, fmt.Sprintf("%s:%s", ip.String(), port))
+		s := ip.String()
+		if strings.Index(s, ":") != -1 {
+			s = fmt.Sprintf("[%s]", s)
+		}
+		result = append(result, fmt.Sprintf("%s:%s", s, port))
 	}
 	return result, nil
 }
