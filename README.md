@@ -31,19 +31,25 @@ proxies:
   - name: test-1
     listen: ":9090"
     backends:
-      - "127.0.0.1:9091"
-      - "127.0.0.1:9092"
+      - addr: "127.0.0.1:9091"
+        readiness:
+          protocol: tcp
+          port: 7890
+      - addr: "127.0.0.1:9092"
+        readiness:
+          protocol: tcp
+          port: 7891
   - name: test-2
     listen: ":9020"
     backends:
-      - "127.0.0.1:9022"
-      - "127.0.0.1:9021"
+      - addr: "127.0.0.1:9022"
+      - addr: "127.0.0.1:9021"
 
   - name: test-3
     listen: ":9030"
     backends:
-      - "127.0.0.1:9032"
-      - "127.0.0.1:9031"
+      - addr: "127.0.0.1:9032"
+      - addr: "127.0.0.1:9031"
 # ~/thriftproxy/bin/thriftproxy -c test-proxy.yaml
 ```
 
@@ -57,7 +63,14 @@ The thriftproxy will listen on the admin address to accept the restful call to a
     "proxies": [
         {
             "name": "test-1",
-            "backends": [ "127.0.0.1:6666" ]
+            "backends": [
+              { "addr": "127.0.0.1:6666",
+                "readiness": {
+                  "protocol": "http",
+                  "port": 7893,
+                  "path": "/healthz"
+                }
+              }]
         }
     ]
 }
