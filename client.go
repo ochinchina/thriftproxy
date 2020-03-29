@@ -2,7 +2,6 @@ package main
 
 import (
 	"errors"
-	"fmt"
 	log "github.com/sirupsen/logrus"
 	"net"
 )
@@ -109,15 +108,11 @@ func (c *Client) processResponse(name string, newSeqId int, framed bool, respons
 		return
 	}
 
-	fmt.Println("processResponse")
 	if err != nil {
 		log.WithFields(log.Fields{"newSeqId": newSeqId}).Error("Fail to send request")
 		response = createInternalErrorException(framed, name, oldSeqId, err.Error())
 	}
 
-	fmt.Printf("response:%s\n", response.Hex())
-
-	fmt.Printf("not get response for %d requests\n", c.seqIdMapper.Size())
 	response.SetSeqId(oldSeqId)
 
 	defer func() {
@@ -140,4 +135,8 @@ func (c *Client) resetSeqId(request *Message) (int, error) {
 	}
 	c.seqIdMapper.MapTo(oldSeqId, newSeqId)
 	return newSeqId, nil
+}
+
+func (c *Client) remoteAddr() net.Addr {
+	return c.conn.RemoteAddr()
 }

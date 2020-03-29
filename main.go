@@ -1,11 +1,13 @@
 package main
 
 import (
+	"fmt"
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 	"gopkg.in/natefinch/lumberjack.v2"
 	"gopkg.in/yaml.v3"
 	"os"
+	"strings"
 )
 
 func init() {
@@ -35,6 +37,17 @@ func initLog(logFile string, strLevel string, logSize int, backups int) {
 	}
 }
 
+type ReadinessConf struct {
+	Protocol string
+	Port     int
+	Path     string `yaml:"path,omitempty"`
+}
+
+type BackendInfo struct {
+	Addr      string
+	Readiness *ReadinessConf `yaml:"readiness,omitempty"`
+}
+
 type ProxiesConfigure struct {
 	Admin struct {
 		Addr string
@@ -42,7 +55,7 @@ type ProxiesConfigure struct {
 	Proxies []struct {
 		Name     string
 		Listen   string
-		Backends []string
+		Backends []BackendInfo
 	}
 }
 
@@ -65,6 +78,33 @@ func loadConfig(fileName string) (*ProxiesConfigure, error) {
 
 }
 
+func createReadiness(addr string, readinessConf *ReadinessConf) Readiness {
+	if readinessConf == nil {
+		return NewNullReadiness()
+	}
+	ip, _, err := splitAddr(addr)
+	if err != nil {
+		ip = addr
+	}
+	//if it is IPv6
+	if strings.Index(ip, ":") != -1 && !strings.HasPrefix(ip, "[") {
+		ip = fmt.Sprintf("[%s]", ip)
+	}
+	switch readinessConf.Protocol {
+	case "tcp":
+		return NewTcpReadiness(fmt.Sprintf("%s:%d", ip, readinessConf.Port))
+	case "http":
+		path := "/"
+		if len(readinessConf.Path) > 0 {
+			path = readinessConf.Path
+		}
+		url := fmt.Sprintf("http://%s:%d%s", ip, readinessConf.Port, path)
+		return NewHttpReadiness(url)
+	default:
+		return NewNullReadiness()
+	}
+}
+
 func startProxies(c *cli.Context) error {
 
 	config, err := loadConfig(c.String("config"))
@@ -79,10 +119,11 @@ func startProxies(c *cli.Context) error {
 	initLog(fileName, strLevel, logSize, backups)
 	proxyMgr := NewProxyMgr()
 	admin := NewAdmin(config.Admin.Addr, proxyMgr)
+	fmt.Printf("config=%v\n", config)
 	for _, proxy := range config.Proxies {
 		roundRobin := NewRoundrobin()
 		for _, backend := range proxy.Backends {
-			roundRobin.AddBackend(backend)
+			roundRobin.AddBackend(backend.Addr, backend.Readiness)
 		}
 		proxyMgr.AddProxy(NewProxy(proxy.Name, proxy.Listen, roundRobin))
 	}

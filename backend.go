@@ -22,6 +22,7 @@ func newRequestWithResponseCallback(request *Message,
 
 type Backend struct {
 	addr              string
+	readiness         Readiness
 	stop              int32
 	conn              net.Conn
 	connected         int32
@@ -31,19 +32,31 @@ type Backend struct {
 }
 
 // NewBackend create a thrift backend
-func NewBackend(addr string) *Backend {
+func NewBackend(addr string, readiness Readiness) *Backend {
 	backend := &Backend{addr: addr,
+		readiness:         readiness,
 		stop:              0,
 		conn:              NewErrorConn(),
 		connected:         0,
 		responseTimeout:   60 * time.Second,
 		requests:          make(chan *requestWithResponseCallback, 1000),
 		responseCallbacks: NewResponseCallbackMgr()}
-	go backend.start()
-	go backend.startWriteMessage()
+	go backend.startAfterReady()
 	return backend
 }
 
+func (b *Backend) startAfterReady() {
+	for !b.IsStopped() {
+		if b.readiness.IsReady() {
+			log.WithFields(log.Fields{"address": b.addr}).Info("Server is ready")
+			go b.start()
+			go b.startWriteMessage()
+			break
+		}
+		time.Sleep(time.Duration(2) * time.Second)
+	}
+
+}
 func (b *Backend) GetAddr() string {
 	return b.addr
 }
@@ -78,7 +91,7 @@ func (b *Backend) startReadMessage() {
 		b.processResponseBuffer(respBuffer)
 	}
 	if !b.IsStopped() {
-		go b.start()
+		go b.startAfterReady()
 	}
 }
 
@@ -121,12 +134,12 @@ func (b *Backend) getResponseCallback(seqId int) (ResponseCallback, bool) {
 
 // Stop stop the backend
 func (b *Backend) Stop() {
-    if atomic.CompareAndSwapInt32(&b.stop, 0, 1)  {
-        log.WithFields( log.Fields{ "address": b.addr } ).Info( "Stop backend" )
-        defer b.conn.Close()
-    } else {
-        log.WithFields( log.Fields{ "address": b.addr } ).Info( "Backend is already stopped" )
-    }
+	if atomic.CompareAndSwapInt32(&b.stop, 0, 1) {
+		log.WithFields(log.Fields{"address": b.addr}).Info("Stop backend")
+		defer b.conn.Close()
+	} else {
+		log.WithFields(log.Fields{"address": b.addr}).Info("Backend is already stopped")
+	}
 }
 
 func (b *Backend) IsStopped() bool {

@@ -1,8 +1,7 @@
 package main
 
 import (
-    "errors"
-	"fmt"
+	"errors"
 	log "github.com/sirupsen/logrus"
 	"net"
 	"sync"
@@ -28,14 +27,15 @@ func (p *ProxyMgr) RemoveProxy(name string) {
 	}
 }
 
-func (p *ProxyMgr) GetProxy( name string )( *Proxy,  error ) {
-   for _, proxy := range p.proxies {
-        if proxy.name == name {
-            return proxy, nil
-        }
-    }
-    return nil, errors.New( "Fail to find proxy" )
+func (p *ProxyMgr) GetProxy(name string) (*Proxy, error) {
+	for _, proxy := range p.proxies {
+		if proxy.name == name {
+			return proxy, nil
+		}
+	}
+	return nil, errors.New("Fail to find proxy")
 }
+
 // Start start all the proxies
 func (p *ProxyMgr) Run() {
 	var wg sync.WaitGroup
@@ -100,12 +100,12 @@ func (p *Proxy) Run() {
 	}
 }
 
-func (p *Proxy)AddBackend( addr string ) {
-    p.loadBalancer.AddBackend( addr )
+func (p *Proxy) AddBackend(addr string, readinessConf *ReadinessConf) {
+	p.loadBalancer.AddBackend(addr, readinessConf)
 }
 
-func (p *Proxy)RemoveBackend( addr string ) {
-    p.loadBalancer.RemoveBackend( addr )
+func (p *Proxy) RemoveBackend(addr string) {
+	p.loadBalancer.RemoveBackend(addr)
 }
 
 func (p *Proxy) addClient(client *Client) {
@@ -116,14 +116,12 @@ func (p *Proxy) addClient(client *Client) {
 }
 
 func (p *Proxy) removeClient(c *Client) {
-	fmt.Printf("try to remove client %v from %d clients\n", c, len(p.clients))
 	p.clientLock.Lock()
 	defer p.clientLock.Unlock()
 
 	for i, value := range p.clients {
-		fmt.Printf("Check client %v\n", value)
 		if value == c {
-			fmt.Printf("Succeed to remove client\n")
+			log.WithFields(log.Fields{"address": c.remoteAddr().String()}).Info("Succeed to remove client")
 			p.clients = append(p.clients[:i], p.clients[i+1:]...)
 			break
 		}

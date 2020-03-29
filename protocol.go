@@ -40,10 +40,10 @@ func NewBinaryProtocol(framed bool) *BinaryProtocol {
 }
 
 func (bp *BinaryProtocol) BeginMessage(name string, msgType MessageType, seqId int) {
-    bp.buf.WriteByte( 0x80 )
-    bp.buf.WriteByte( 0x01 )
-    bp.buf.WriteByte( 0 )
-    bp.buf.WriteByte( byte( msgType ) )
+	bp.buf.WriteByte(0x80)
+	bp.buf.WriteByte(0x01)
+	bp.buf.WriteByte(0)
+	bp.buf.WriteByte(byte(msgType))
 	bp.WriteString(name)
 	bp.WriteInt32(seqId)
 }

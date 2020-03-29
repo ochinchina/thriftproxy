@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	log "github.com/sirupsen/logrus"
 	"strings"
 	"sync/atomic"
 )
@@ -25,7 +26,7 @@ func splitAddr(addr string) (hostname string, port string, err error) {
 // LoadBalancer
 type LoadBalancer interface {
 	// add a backend, the address is in ip:port format
-	AddBackend(addr string)
+	AddBackend(addr string, readinessConf *ReadinessConf)
 
 	// remove previous added backend
 	RemoveBackend(addr string) error
@@ -49,23 +50,28 @@ func NewRoundrobin() *Roundrobin {
 }
 
 // AddBackend add a thrift backend server
-func (r *Roundrobin) AddBackend(addr string) {
+func (r *Roundrobin) AddBackend(addr string, readinessConf *ReadinessConf) {
 	hostname, _, err := splitAddr(addr)
 
 	if err != nil {
+		log.WithFields(log.Fields{"address": addr}).Error("Backend address is invalid")
 		return
 	}
 
+	log.WithFields(log.Fields{"address": addr}).Info("Add backend")
+
 	if !isIPAddress(hostname) {
-		r.resolver.ResolveHost(addr, r.resolvedAddrs)
+		r.resolver.ResolveHost(addr, func(hostname string, newAddrs []string, removedAddrs []string) {
+			r.resolvedAddrs(hostname, newAddrs, removedAddrs, readinessConf)
+		})
 	} else if !r.backends.Exists(addr) {
-		r.backends.Add(NewBackend(addr))
+		r.backends.Add(NewBackend(addr, createReadiness(addr, readinessConf)))
 	}
 }
 
-func (r *Roundrobin) resolvedAddrs(hostname string, newAddrs []string, removedAddrs []string) {
+func (r *Roundrobin) resolvedAddrs(hostname string, newAddrs []string, removedAddrs []string, readinessConf *ReadinessConf) {
 	for _, addr := range newAddrs {
-		r.AddBackend(addr)
+		r.AddBackend(addr, readinessConf)
 	}
 	for _, addr := range removedAddrs {
 		r.RemoveBackend(addr)

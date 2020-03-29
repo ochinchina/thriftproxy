@@ -12,10 +12,10 @@ type Admin struct {
 	proxyMgr *ProxyMgr
 }
 
-type BackendInfo struct {
+type ProxyBackends struct {
 	Proxies []struct {
 		Name     string
-		Backends []string
+		Backends []BackendInfo
 	}
 }
 
@@ -37,9 +37,9 @@ func (admin *Admin) processAddBackend(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 
 	defer r.Body.Close()
-	backendInfo, err := admin.readBackendInfo(r)
+	proxyBackends, err := admin.readProxyBackends(r)
 	if err == nil {
-		admin.addBackend(backendInfo)
+		admin.addBackend(proxyBackends)
 	}
 }
 
@@ -47,43 +47,43 @@ func (admin *Admin) processRemoveBackend(w http.ResponseWriter, r *http.Request)
 	w.WriteHeader(http.StatusOK)
 
 	defer r.Body.Close()
-	backendInfo, err := admin.readBackendInfo(r)
+	proxyBackends, err := admin.readProxyBackends(r)
 	if err == nil {
-		admin.removeBackend(backendInfo)
+		admin.removeBackend(proxyBackends)
 	}
 }
 
-func (admin *Admin) readBackendInfo(r *http.Request) (*BackendInfo, error) {
+func (admin *Admin) readProxyBackends(r *http.Request) (*ProxyBackends, error) {
 	b, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		return nil, err
 	}
-	info := BackendInfo{}
+	info := ProxyBackends{}
 	err = json.Unmarshal(b, &info)
 	return &info, err
 
 }
 
-func (admin *Admin) processBackend(backendInfo *BackendInfo, proxyProcFunc func(proxy *Proxy, addr string)) {
-	for _, proxyInfo := range backendInfo.Proxies {
+func (admin *Admin) processBackend(proxyBackends *ProxyBackends, proxyProcFunc func(proxy *Proxy, backend *BackendInfo)) {
+	for _, proxyInfo := range proxyBackends.Proxies {
 		proxy, err := admin.proxyMgr.GetProxy(proxyInfo.Name)
 		if err == nil {
 			for _, backend := range proxyInfo.Backends {
-				proxyProcFunc(proxy, backend)
+				proxyProcFunc(proxy, &backend)
 			}
 		}
 	}
 
 }
 
-func (admin *Admin) addBackend(backendInfo *BackendInfo) {
-	admin.processBackend(backendInfo, func(proxy *Proxy, addr string) {
-		proxy.AddBackend(addr)
+func (admin *Admin) addBackend(proxyBackends *ProxyBackends) {
+	admin.processBackend(proxyBackends, func(proxy *Proxy, backend *BackendInfo) {
+		proxy.AddBackend(backend.Addr, backend.Readiness)
 	})
 }
 
-func (admin *Admin) removeBackend(backendInfo *BackendInfo) {
-	admin.processBackend(backendInfo, func(proxy *Proxy, addr string) {
-		proxy.RemoveBackend(addr)
+func (admin *Admin) removeBackend(proxyBackends *ProxyBackends) {
+	admin.processBackend(proxyBackends, func(proxy *Proxy, backend *BackendInfo) {
+		proxy.RemoveBackend(backend.Addr)
 	})
 }

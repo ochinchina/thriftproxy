@@ -2,13 +2,13 @@ package main
 
 import (
 	"fmt"
-    "sync"
+	"sync"
 )
 
 var indexOutOfBoundError error = fmt.Errorf("Index out of bound")
 
 type BackendMgr struct {
-    sync.Mutex
+	sync.Mutex
 	backends []*Backend
 }
 
@@ -19,24 +19,24 @@ func NewBackendMgr() *BackendMgr {
 
 // Exists Check if the backend with address exists or not
 func (b *BackendMgr) Exists(addr string) bool {
-    b.Lock()
-    defer b.Unlock()
+	b.Lock()
+	defer b.Unlock()
 	_, err := b.getIndex(addr)
 	return err == nil
 }
 
 // Size get number of backends
 func (b *BackendMgr) Size() int {
-    b.Lock()
-    defer b.Unlock()
+	b.Lock()
+	defer b.Unlock()
 
 	return len(b.backends)
 }
 
 // GetIndex get backend by index
 func (b *BackendMgr) GetIndex(index int) (*Backend, error) {
-    b.Lock()
-    defer b.Unlock()
+	b.Lock()
+	defer b.Unlock()
 
 	if index >= 0 && index < len(b.backends) {
 		return b.backends[index], nil
@@ -46,15 +46,15 @@ func (b *BackendMgr) GetIndex(index int) (*Backend, error) {
 
 // Add add a backend
 func (b *BackendMgr) Add(backend *Backend) {
-    b.Lock()
-    defer b.Unlock()
+	b.Lock()
+	defer b.Unlock()
 	b.backends = append(b.backends, backend)
 }
 
 // Get get backend by address
 func (b *BackendMgr) Get(addr string) (*Backend, error) {
-    b.Lock()
-    defer b.Unlock()
+	b.Lock()
+	defer b.Unlock()
 
 	index, err := b.getIndex(addr)
 	if err == nil {
@@ -65,8 +65,8 @@ func (b *BackendMgr) Get(addr string) (*Backend, error) {
 
 // Remove remove backend by address
 func (b *BackendMgr) Remove(addr string) (*Backend, error) {
-    b.Lock()
-    defer b.Unlock()
+	b.Lock()
+	defer b.Unlock()
 
 	index, err := b.getIndex(addr)
 	if err == nil {
