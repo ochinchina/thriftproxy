@@ -4,10 +4,12 @@ import (
 	"errors"
 	log "github.com/sirupsen/logrus"
 	"net"
+    "time"
 )
 
 type Client struct {
 	conn             net.Conn
+    requestTimeout time.Duration
 	seqIdAllocator   *SeqIdAllocator
 	seqIdMapper      *SeqIdMapper
 	loadBalancer     LoadBalancer
@@ -17,10 +19,12 @@ type Client struct {
 
 // NewClient create a thrift client side delegation
 func NewClient(conn net.Conn,
+    requestTimeout time.Duration,
 	seqIdAllocator *SeqIdAllocator,
 	loadBalancer LoadBalancer,
 	connLostCallback func(*Client)) *Client {
 	client := &Client{conn: conn,
+        requestTimeout:     requestTimeout,
 		seqIdAllocator:   seqIdAllocator,
 		seqIdMapper:      NewSeqIdMapper(),
 		loadBalancer:     loadBalancer,
@@ -90,7 +94,7 @@ func (c *Client) processRequest(request *Message) {
 	newSeqId, err := c.resetSeqId(request)
 	name, _ := request.GetName()
 	if err == nil {
-		c.loadBalancer.Send(request, func(response *Message, err error) {
+		c.loadBalancer.Send(request, time.Now().Add( c.requestTimeout ), func(response *Message, err error) {
 			c.processResponse(name, newSeqId, request.isFramed(), response, err)
 		})
 	} else {
@@ -109,7 +113,7 @@ func (c *Client) processResponse(name string, newSeqId int, framed bool, respons
 	}
 
 	if err != nil {
-		log.WithFields(log.Fields{"newSeqId": newSeqId}).Error("Fail to send request")
+		log.WithFields(log.Fields{"newSeqId": newSeqId, "error": err.Error() }).Error("Fail to send request")
 		response = createInternalErrorException(framed, name, oldSeqId, err.Error())
 	}
 

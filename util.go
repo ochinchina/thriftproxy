@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net"
 	"strings"
+    "strconv"
+    "time"
 )
 
 func inStrArray(s string, a []string) bool {
@@ -71,3 +73,23 @@ func createReadiness(addr string, readinessConf *ReadinessConf) Readiness {
 		return NewNullReadiness()
 	}
 }
+
+func convertRequestTimeout( requestTimeout string, defaultTimeout time.Duration ) time.Duration {
+    n := len( requestTimeout )
+    if n <= 0 {
+        return defaultTimeout
+    }
+    if strings.HasSuffix( requestTimeout, "ms" ) {
+        t, err := strconv.Atoi( requestTimeout[0:n - 2 ] )
+        if err == nil {
+            return time.Duration( t ) * time.Millisecond
+        }
+    } else if strings.HasSuffix( requestTimeout, "s" ) {
+        t, err := strconv.Atoi( requestTimeout[0:n - 1 ] )
+        if err == nil {
+            return time.Duration( t ) * time.Second
+        }
+    }
+    return defaultTimeout
+}
+

@@ -14,9 +14,9 @@ type responseWithTimeout struct {
 }
 
 func newResponseWithTimeout(responseCallback ResponseCallback,
-	timeout time.Duration) *responseWithTimeout {
+	timeoutTime time.Time ) *responseWithTimeout {
 	return &responseWithTimeout{responseCallback: responseCallback,
-		timeoutTime: time.Now().Add(timeout)}
+		timeoutTime: timeoutTime }
 }
 
 func (r *responseWithTimeout) isTimeout() bool {
@@ -30,14 +30,15 @@ type ResponseCallbackMgr struct {
 
 // NewResponseCallbackMgr create a ResponseCallbackMgr object
 func NewResponseCallbackMgr() *ResponseCallbackMgr {
-	return &ResponseCallbackMgr{responseCallbacks: make(map[int]*responseWithTimeout)}
+	return &ResponseCallbackMgr{ responseCallbacks: make(map[int]*responseWithTimeout) }
+
 }
 
 // Add add a response callback for a seqId
-func (r *ResponseCallbackMgr) Add(seqId int, callback ResponseCallback, timeout time.Duration) {
+func (r *ResponseCallbackMgr) Add(seqId int, callback ResponseCallback, timeoutTime time.Time ) {
 	r.Lock()
 	defer r.Unlock()
-	r.responseCallbacks[seqId] = newResponseWithTimeout(callback, timeout)
+	r.responseCallbacks[seqId] = newResponseWithTimeout(callback, timeoutTime )
 }
 
 func (r *ResponseCallbackMgr) Remove(seqId int) (ResponseCallback, bool) {
@@ -45,24 +46,34 @@ func (r *ResponseCallbackMgr) Remove(seqId int) (ResponseCallback, bool) {
 	defer r.Unlock()
 
 	if value, ok := r.responseCallbacks[seqId]; ok {
+        delete(r.responseCallbacks, seqId)
 		return value.responseCallback, true
 	} else {
 		return nil, false
 	}
 }
 
+func (r *ResponseCallbackMgr)getTimeoutResponses() map[int]*responseWithTimeout {
+    r.Lock()
+    defer r.Unlock()
+
+    timeoutItems := make( map[int]*responseWithTimeout)
+
+    for key, value := range r.responseCallbacks {
+        if value.isTimeout() {
+            timeoutItems[key] = value
+        }
+    }
+    for key, _:= range timeoutItems {
+        delete(r.responseCallbacks, key)
+    }
+
+    return timeoutItems
+
+}
+
 func (r *ResponseCallbackMgr) RemoveTimeout(procFunc func(callback ResponseCallback)) {
-	r.Lock()
-	timeoutItems := make(map[int]*responseWithTimeout)
-	for key, value := range r.responseCallbacks {
-		if value.isTimeout() {
-			timeoutItems[key] = value
-		}
-	}
-	for key, _ := range timeoutItems {
-		delete(r.responseCallbacks, key)
-	}
-	r.Unlock()
+	timeoutItems := r.getTimeoutResponses()
 
 	for _, value := range timeoutItems {
 		procFunc(value.responseCallback)

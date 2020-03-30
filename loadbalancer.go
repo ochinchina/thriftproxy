@@ -4,6 +4,7 @@ import (
 	"errors"
 	log "github.com/sirupsen/logrus"
 	"sync/atomic"
+    "time"
 )
 
 var noBackendAvailable error = errors.New("No backend is available")
@@ -18,7 +19,7 @@ type LoadBalancer interface {
 	RemoveBackend(addr string) error
 
 	// send a message to thrift server
-	Send(msg *Message, callback ResponseCallback)
+	Send(msg *Message, requestTimeoutTime time.Time, callback ResponseCallback)
 }
 
 // Roundrobin this class implements LoadBalancer interface
@@ -51,7 +52,9 @@ func (r *Roundrobin) AddBackend(backendInfo *BackendInfo) {
 			r.resolvedAddrs(hostname, newAddrs, removedAddrs, backendInfo.Readiness)
 		})
 	} else if !r.backends.Exists(backendInfo.Addr) {
-		r.backends.Add(NewBackend(backendInfo.Addr, createReadiness(backendInfo.Addr, backendInfo.Readiness)))
+        backend := NewBackend(backendInfo.Addr, 
+                            createReadiness(backendInfo.Addr, backendInfo.Readiness) )
+		r.backends.Add( backend )
 	}
 }
 
@@ -88,31 +91,32 @@ func (r *Roundrobin) RemoveBackend(addr string) error {
 }
 
 // Send send a request to one of thrift backend server
-func (r *Roundrobin) Send(request *Message, callback ResponseCallback) {
+func (r *Roundrobin) Send(request *Message, requestTimeoutTime time.Time, callback ResponseCallback) {
 	n := int32(r.backends.Size())
 	if n <= 0 {
 		callback(nil, noBackendAvailable)
 	} else {
 		index := atomic.AddInt32(&r.nextBackend, int32(1)) % n
-		r.sendTo(request, index, n, n, callback)
+		r.sendTo(request, requestTimeoutTime, index, n, n, callback)
 	}
 }
 
-func (r *Roundrobin) sendTo(request *Message, index int32, leftTimes int32, total int32, callback ResponseCallback) {
+func (r *Roundrobin) sendTo(request *Message, requestTimeoutTime time.Time, index int32, leftTimes int32, total int32, callback ResponseCallback) {
 	if leftTimes <= 0 {
 		callback(nil, failedAllBackends)
 	} else {
 		backend, err := r.backends.GetIndex(int(index))
 		if err == nil {
-			backend.Send(request, func(response *Message, err error) {
+			backend.Send(request, requestTimeoutTime, func(response *Message, err error) {
 				if err == nil {
 					callback(response, err)
 				} else {
-					r.sendTo(request, (index+1)%total, leftTimes-1, total, callback)
+                    log.WithFields( log.Fields{ "backend": backend.GetAddr(), "error": err } ).Error( "Fail to send request" )
+					r.sendTo(request, requestTimeoutTime, (index+1)%total, leftTimes-1, total, callback)
 				}
 			})
 		} else {
-			r.sendTo(request, (index+1)%total, leftTimes-1, total, callback)
+			r.sendTo(request, requestTimeoutTime, (index+1)%total, leftTimes-1, total, callback)
 		}
 	}
 }

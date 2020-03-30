@@ -1,23 +1,24 @@
 package main
 
 import (
-	"fmt"
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 	"gopkg.in/natefinch/lumberjack.v2"
 	"gopkg.in/yaml.v3"
 	"os"
+    "runtime"
+    "time"
 )
 
 func init() {
-	// Log as JSON instead of the default ASCII formatter.
-	//log.SetFormatter(&log.JSONFormatter{})
-
-	// Output to stdout instead of the default stderr
-	// Can be any io.Writer, see below for File example
 	log.SetOutput(os.Stdout)
 
-	// Only log the warning severity or above.
+    if runtime.GOOS == "windows" {
+		log.SetFormatter(&log.TextFormatter{DisableColors: true, FullTimestamp: true})
+	} else {
+		log.SetFormatter(&log.TextFormatter{DisableColors: false, FullTimestamp: true})
+	}
+
 	log.SetLevel(log.DebugLevel)
 }
 
@@ -54,6 +55,7 @@ type ProxiesConfigure struct {
 	Proxies []struct {
 		Name     string
 		Listen   string
+        RequestTimeout string `yaml:"requestTimeout,omitempty"`
 		Backends []BackendInfo
 	}
 }
@@ -91,13 +93,13 @@ func startProxies(c *cli.Context) error {
 	initLog(fileName, strLevel, logSize, backups)
 	proxyMgr := NewProxyMgr()
 	admin := NewAdmin(config.Admin.Addr, proxyMgr)
-	fmt.Printf("config=%v\n", config)
+    defTimeout := time.Duration( 60 ) * time.Second
 	for _, proxy := range config.Proxies {
 		roundRobin := NewRoundrobin()
 		for _, backend := range proxy.Backends {
 			roundRobin.AddBackend(&backend)
 		}
-		proxyMgr.AddProxy(NewProxy(proxy.Name, proxy.Listen, roundRobin))
+		proxyMgr.AddProxy(NewProxy(proxy.Name, proxy.Listen, convertRequestTimeout( proxy.RequestTimeout, defTimeout ), roundRobin))
 	}
 
 	admin.Start()

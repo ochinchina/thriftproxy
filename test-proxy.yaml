@@ -3,6 +3,7 @@ admin:
 proxies:
   - name: test-1 
     listen: ":9090"
+    requestTimeout: "5s"
     backends:
       - addr: "127.0.0.1:9091"
         readiness:

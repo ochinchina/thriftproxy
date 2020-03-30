@@ -9,15 +9,21 @@ import (
 )
 
 var notConnectedError error = errors.New("not connected")
+var requestTimeoutError error = errors.New( "Request is timeout" )
 
 type requestWithResponseCallback struct {
 	request          *Message
+    requestTimeoutTime time.Time
 	responseCallback ResponseCallback
 }
 
 func newRequestWithResponseCallback(request *Message,
+    requestTimeoutTime time.Time,
 	responseCallback ResponseCallback) *requestWithResponseCallback {
-	return &requestWithResponseCallback{request: request, responseCallback: responseCallback}
+
+	return &requestWithResponseCallback{request: request, 
+                    requestTimeoutTime: requestTimeoutTime,
+                    responseCallback: responseCallback}
 }
 
 type Backend struct {
@@ -26,22 +32,22 @@ type Backend struct {
 	stop              int32
 	conn              net.Conn
 	connected         int32
-	responseTimeout   time.Duration
 	requests          chan *requestWithResponseCallback
 	responseCallbacks *ResponseCallbackMgr
 }
 
 // NewBackend create a thrift backend
-func NewBackend(addr string, readiness Readiness) *Backend {
+func NewBackend(addr string, 
+                readiness Readiness) *Backend {
 	backend := &Backend{addr: addr,
 		readiness:         readiness,
 		stop:              0,
 		conn:              NewErrorConn(),
 		connected:         0,
-		responseTimeout:   60 * time.Second,
 		requests:          make(chan *requestWithResponseCallback, 1000),
 		responseCallbacks: NewResponseCallbackMgr()}
 	go backend.startAfterReady()
+    go backend.cleanTimeoutResponse()
 	return backend
 }
 
@@ -57,6 +63,18 @@ func (b *Backend) startAfterReady() {
 	}
 
 }
+
+func (b *Backend) cleanTimeoutResponse() {
+    cleanInterval := time.Duration( 10 ) * time.Millisecond
+
+    for !b.IsStopped() {
+        b.responseCallbacks.RemoveTimeout( func( callback ResponseCallback ) {
+            callback( nil, requestTimeoutError )
+        })
+        time.Sleep( cleanInterval )
+    }
+}
+
 func (b *Backend) GetAddr() string {
 	return b.addr
 }
@@ -78,8 +96,10 @@ func (b *Backend) start() {
 }
 
 func (b *Backend) startReadMessage() {
+
 	buffer := make([]byte, 4096)
 	respBuffer := NewMessageBuffer()
+
 	for {
 		n, err := b.conn.Read(buffer)
 		if err != nil {
@@ -146,11 +166,11 @@ func (b *Backend) IsStopped() bool {
 	return atomic.LoadInt32(&b.stop) != 0
 }
 
-func (b *Backend) Send(request *Message, callback ResponseCallback) {
+func (b *Backend) Send(request *Message, requestTimeoutTime time.Time, callback ResponseCallback) {
 	if !b.isConnected() {
 		callback(nil, notConnectedError)
 	} else {
-		b.requests <- newRequestWithResponseCallback(request, callback)
+		b.requests <- newRequestWithResponseCallback(request, requestTimeoutTime, callback)
 	}
 }
 
@@ -165,7 +185,7 @@ func (b *Backend) startWriteMessage() {
 			seqId, _ := requestWithResponseCb.request.GetSeqId()
 			b.responseCallbacks.Add(seqId,
 				requestWithResponseCb.responseCallback,
-				b.responseTimeout)
+				requestWithResponseCb.requestTimeoutTime )
 
 			err := requestWithResponseCb.request.Write(b.conn)
 			if err != nil {
