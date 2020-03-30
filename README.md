@@ -59,21 +59,18 @@ The thriftproxy will listen on the admin address to accept the restful call to a
 
 ```shell
 # cat backends.yaml
-{
-    "proxies": [
-        {
-            "name": "test-1",
-            "backends": [
-              { "addr": "127.0.0.1:6666",
-                "readiness": {
-                  "protocol": "http",
-                  "port": 7893,
-                  "path": "/healthz"
-                }
-              }]
-        }
-    ]
-}
+proxies:
+  - name: test-1
+    backends:
+      - addr: "127.0.0.1:6666",
+        readiness:
+          protocol: http
+          port: 7893
+          path: /healthz
+      - addr: "127.0.0.1:6667",
+        readiness:
+          protocol: tcp
+          port: 7894          
 # curl http://localhost:7890/addbackend -d@backends.yaml
 # curl http://localhost:7890/removebackend -d@backends.yaml
 
