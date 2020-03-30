@@ -5,7 +5,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"net"
 	"sync"
-    "time"
+	"time"
 )
 
 type ProxyMgr struct {
@@ -56,7 +56,7 @@ func (p *ProxyMgr) startProxy(proxy *Proxy, wg *sync.WaitGroup) {
 type Proxy struct {
 	name           string
 	addr           string
-    requestTimeout time.Duration
+	requestTimeout time.Duration
 	seqIdAllocator *SeqIdAllocator
 	loadBalancer   LoadBalancer
 	clients        []*Client
@@ -68,11 +68,11 @@ type Proxy struct {
 // to backend thrift servers
 func NewProxy(name string,
 	addr string,
-    requestTimeout time.Duration,
+	requestTimeout time.Duration,
 	loadBalancer LoadBalancer) *Proxy {
 	proxy := &Proxy{name: name,
 		addr:           addr,
-        requestTimeout: requestTimeout,
+		requestTimeout: requestTimeout,
 		seqIdAllocator: NewSeqIdAllocator(),
 		loadBalancer:   loadBalancer,
 		clients:        make([]*Client, 0)}
@@ -94,7 +94,7 @@ func (p *Proxy) Run() {
 		conn, err := ln.Accept()
 		if err == nil {
 			client := NewClient(conn,
-                p.requestTimeout,
+				p.requestTimeout,
 				p.seqIdAllocator,
 				p.loadBalancer,
 				p.removeClient)

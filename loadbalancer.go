@@ -4,7 +4,7 @@ import (
 	"errors"
 	log "github.com/sirupsen/logrus"
 	"sync/atomic"
-    "time"
+	"time"
 )
 
 var noBackendAvailable error = errors.New("No backend is available")
@@ -52,9 +52,8 @@ func (r *Roundrobin) AddBackend(backendInfo *BackendInfo) {
 			r.resolvedAddrs(hostname, newAddrs, removedAddrs, backendInfo.Readiness)
 		})
 	} else if !r.backends.Exists(backendInfo.Addr) {
-        backend := NewBackend(backendInfo.Addr, 
-                            createReadiness(backendInfo.Addr, backendInfo.Readiness) )
-		r.backends.Add( backend )
+		backend := NewBackend(backendInfo)
+		r.backends.Add(backend)
 	}
 }
 
@@ -111,7 +110,7 @@ func (r *Roundrobin) sendTo(request *Message, requestTimeoutTime time.Time, inde
 				if err == nil {
 					callback(response, err)
 				} else {
-                    log.WithFields( log.Fields{ "backend": backend.GetAddr(), "error": err } ).Error( "Fail to send request" )
+					log.WithFields(log.Fields{"backend": backend.GetAddr(), "error": err}).Error("Fail to send request")
 					r.sendTo(request, requestTimeoutTime, (index+1)%total, leftTimes-1, total, callback)
 				}
 			})

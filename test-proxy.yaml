@@ -9,9 +9,12 @@ proxies:
         readiness:
           protocol: tcp
           port: 7891
+        circuitBreaker:
+          successiveFailures: 3
+          pauseTime: "5s"
       - addr: "127.0.0.1:9092"
         readiness:
-          protocol: http
+          protocol: tcp 
           port: 7892
           path: /
   - name: test-2

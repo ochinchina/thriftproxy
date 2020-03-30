@@ -4,9 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"strconv"
 	"strings"
-    "strconv"
-    "time"
+	"time"
 )
 
 func inStrArray(s string, a []string) bool {
@@ -74,22 +74,21 @@ func createReadiness(addr string, readinessConf *ReadinessConf) Readiness {
 	}
 }
 
-func convertRequestTimeout( requestTimeout string, defaultTimeout time.Duration ) time.Duration {
-    n := len( requestTimeout )
-    if n <= 0 {
-        return defaultTimeout
-    }
-    if strings.HasSuffix( requestTimeout, "ms" ) {
-        t, err := strconv.Atoi( requestTimeout[0:n - 2 ] )
-        if err == nil {
-            return time.Duration( t ) * time.Millisecond
-        }
-    } else if strings.HasSuffix( requestTimeout, "s" ) {
-        t, err := strconv.Atoi( requestTimeout[0:n - 1 ] )
-        if err == nil {
-            return time.Duration( t ) * time.Second
-        }
-    }
-    return defaultTimeout
+func convertDuration(duration string, defDuration time.Duration) time.Duration {
+	n := len(duration)
+	if n <= 0 {
+		return defDuration
+	}
+	if strings.HasSuffix(duration, "ms") {
+		t, err := strconv.Atoi(duration[0 : n-2])
+		if err == nil {
+			return time.Duration(t) * time.Millisecond
+		}
+	} else if strings.HasSuffix(duration, "s") {
+		t, err := strconv.Atoi(duration[0 : n-1])
+		if err == nil {
+			return time.Duration(t) * time.Second
+		}
+	}
+	return defDuration
 }
-

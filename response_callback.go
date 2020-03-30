@@ -6,7 +6,7 @@ import (
 )
 
 // ResponseCallback the response from the thrift
-type ResponseCallback = func(message *Message, err error)
+type ResponseCallback = func(response *Message, err error)
 
 type responseWithTimeout struct {
 	responseCallback ResponseCallback
@@ -14,9 +14,9 @@ type responseWithTimeout struct {
 }
 
 func newResponseWithTimeout(responseCallback ResponseCallback,
-	timeoutTime time.Time ) *responseWithTimeout {
+	timeoutTime time.Time) *responseWithTimeout {
 	return &responseWithTimeout{responseCallback: responseCallback,
-		timeoutTime: timeoutTime }
+		timeoutTime: timeoutTime}
 }
 
 func (r *responseWithTimeout) isTimeout() bool {
@@ -30,15 +30,15 @@ type ResponseCallbackMgr struct {
 
 // NewResponseCallbackMgr create a ResponseCallbackMgr object
 func NewResponseCallbackMgr() *ResponseCallbackMgr {
-	return &ResponseCallbackMgr{ responseCallbacks: make(map[int]*responseWithTimeout) }
+	return &ResponseCallbackMgr{responseCallbacks: make(map[int]*responseWithTimeout)}
 
 }
 
 // Add add a response callback for a seqId
-func (r *ResponseCallbackMgr) Add(seqId int, callback ResponseCallback, timeoutTime time.Time ) {
+func (r *ResponseCallbackMgr) Add(seqId int, callback ResponseCallback, timeoutTime time.Time) {
 	r.Lock()
 	defer r.Unlock()
-	r.responseCallbacks[seqId] = newResponseWithTimeout(callback, timeoutTime )
+	r.responseCallbacks[seqId] = newResponseWithTimeout(callback, timeoutTime)
 }
 
 func (r *ResponseCallbackMgr) Remove(seqId int) (ResponseCallback, bool) {
@@ -46,29 +46,29 @@ func (r *ResponseCallbackMgr) Remove(seqId int) (ResponseCallback, bool) {
 	defer r.Unlock()
 
 	if value, ok := r.responseCallbacks[seqId]; ok {
-        delete(r.responseCallbacks, seqId)
+		delete(r.responseCallbacks, seqId)
 		return value.responseCallback, true
 	} else {
 		return nil, false
 	}
 }
 
-func (r *ResponseCallbackMgr)getTimeoutResponses() map[int]*responseWithTimeout {
-    r.Lock()
-    defer r.Unlock()
+func (r *ResponseCallbackMgr) getTimeoutResponses() map[int]*responseWithTimeout {
+	r.Lock()
+	defer r.Unlock()
 
-    timeoutItems := make( map[int]*responseWithTimeout)
+	timeoutItems := make(map[int]*responseWithTimeout)
 
-    for key, value := range r.responseCallbacks {
-        if value.isTimeout() {
-            timeoutItems[key] = value
-        }
-    }
-    for key, _:= range timeoutItems {
-        delete(r.responseCallbacks, key)
-    }
+	for key, value := range r.responseCallbacks {
+		if value.isTimeout() {
+			timeoutItems[key] = value
+		}
+	}
+	for key, _ := range timeoutItems {
+		delete(r.responseCallbacks, key)
+	}
 
-    return timeoutItems
+	return timeoutItems
 
 }
 

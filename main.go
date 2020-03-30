@@ -6,14 +6,14 @@ import (
 	"gopkg.in/natefinch/lumberjack.v2"
 	"gopkg.in/yaml.v3"
 	"os"
-    "runtime"
-    "time"
+	"runtime"
+	"time"
 )
 
 func init() {
 	log.SetOutput(os.Stdout)
 
-    if runtime.GOOS == "windows" {
+	if runtime.GOOS == "windows" {
 		log.SetFormatter(&log.TextFormatter{DisableColors: true, FullTimestamp: true})
 	} else {
 		log.SetFormatter(&log.TextFormatter{DisableColors: false, FullTimestamp: true})
@@ -42,10 +42,14 @@ type ReadinessConf struct {
 	Port     int
 	Path     string `yaml:"path,omitempty"`
 }
-
+type CircuitbreakConf struct {
+	SuccessiveFailures int    `yaml:"successiveFailures"`
+	PauseTime          string `yaml:"pauseTime"`
+}
 type BackendInfo struct {
-	Addr      string
-	Readiness *ReadinessConf `yaml:"readiness,omitempty"`
+	Addr           string
+	Readiness      *ReadinessConf    `yaml:"readiness,omitempty"`
+	CircuitBreaker *CircuitbreakConf `yaml:"circuitBreaker,omitempty"`
 }
 
 type ProxiesConfigure struct {
@@ -53,10 +57,10 @@ type ProxiesConfigure struct {
 		Addr string
 	}
 	Proxies []struct {
-		Name     string
-		Listen   string
-        RequestTimeout string `yaml:"requestTimeout,omitempty"`
-		Backends []BackendInfo
+		Name           string
+		Listen         string
+		RequestTimeout string `yaml:"requestTimeout,omitempty"`
+		Backends       []BackendInfo
 	}
 }
 
@@ -93,13 +97,13 @@ func startProxies(c *cli.Context) error {
 	initLog(fileName, strLevel, logSize, backups)
 	proxyMgr := NewProxyMgr()
 	admin := NewAdmin(config.Admin.Addr, proxyMgr)
-    defTimeout := time.Duration( 60 ) * time.Second
+	defTimeout := time.Duration(60) * time.Second
 	for _, proxy := range config.Proxies {
 		roundRobin := NewRoundrobin()
 		for _, backend := range proxy.Backends {
 			roundRobin.AddBackend(&backend)
 		}
-		proxyMgr.AddProxy(NewProxy(proxy.Name, proxy.Listen, convertRequestTimeout( proxy.RequestTimeout, defTimeout ), roundRobin))
+		proxyMgr.AddProxy(NewProxy(proxy.Name, proxy.Listen, convertDuration(proxy.RequestTimeout, defTimeout), roundRobin))
 	}
 
 	admin.Start()

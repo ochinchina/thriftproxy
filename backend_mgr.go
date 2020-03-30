@@ -9,12 +9,12 @@ var indexOutOfBoundError error = fmt.Errorf("Index out of bound")
 
 type BackendMgr struct {
 	sync.Mutex
-	backends []*Backend
+	backends []Backend
 }
 
 // NewBackendMgr create a BackendMgr object
 func NewBackendMgr() *BackendMgr {
-	return &BackendMgr{backends: make([]*Backend, 0)}
+	return &BackendMgr{backends: make([]Backend, 0)}
 }
 
 // Exists Check if the backend with address exists or not
@@ -34,7 +34,7 @@ func (b *BackendMgr) Size() int {
 }
 
 // GetIndex get backend by index
-func (b *BackendMgr) GetIndex(index int) (*Backend, error) {
+func (b *BackendMgr) GetIndex(index int) (Backend, error) {
 	b.Lock()
 	defer b.Unlock()
 
@@ -45,14 +45,14 @@ func (b *BackendMgr) GetIndex(index int) (*Backend, error) {
 }
 
 // Add add a backend
-func (b *BackendMgr) Add(backend *Backend) {
+func (b *BackendMgr) Add(backend Backend) {
 	b.Lock()
 	defer b.Unlock()
 	b.backends = append(b.backends, backend)
 }
 
 // Get get backend by address
-func (b *BackendMgr) Get(addr string) (*Backend, error) {
+func (b *BackendMgr) Get(addr string) (Backend, error) {
 	b.Lock()
 	defer b.Unlock()
 
@@ -64,7 +64,7 @@ func (b *BackendMgr) Get(addr string) (*Backend, error) {
 }
 
 // Remove remove backend by address
-func (b *BackendMgr) Remove(addr string) (*Backend, error) {
+func (b *BackendMgr) Remove(addr string) (Backend, error) {
 	b.Lock()
 	defer b.Unlock()
 
