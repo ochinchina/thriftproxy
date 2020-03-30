@@ -100,8 +100,8 @@ func (p *Proxy) Run() {
 	}
 }
 
-func (p *Proxy) AddBackend(addr string, readinessConf *ReadinessConf) {
-	p.loadBalancer.AddBackend(addr, readinessConf)
+func (p *Proxy) AddBackend(backendInfo *BackendInfo) {
+	p.loadBalancer.AddBackend(backendInfo)
 }
 
 func (p *Proxy) RemoveBackend(addr string) {

@@ -7,7 +7,6 @@ import (
 	"gopkg.in/natefinch/lumberjack.v2"
 	"gopkg.in/yaml.v3"
 	"os"
-	"strings"
 )
 
 func init() {
@@ -78,33 +77,6 @@ func loadConfig(fileName string) (*ProxiesConfigure, error) {
 
 }
 
-func createReadiness(addr string, readinessConf *ReadinessConf) Readiness {
-	if readinessConf == nil {
-		return NewNullReadiness()
-	}
-	ip, _, err := splitAddr(addr)
-	if err != nil {
-		ip = addr
-	}
-	//if it is IPv6
-	if strings.Index(ip, ":") != -1 && !strings.HasPrefix(ip, "[") {
-		ip = fmt.Sprintf("[%s]", ip)
-	}
-	switch readinessConf.Protocol {
-	case "tcp":
-		return NewTcpReadiness(fmt.Sprintf("%s:%d", ip, readinessConf.Port))
-	case "http":
-		path := "/"
-		if len(readinessConf.Path) > 0 {
-			path = readinessConf.Path
-		}
-		url := fmt.Sprintf("http://%s:%d%s", ip, readinessConf.Port, path)
-		return NewHttpReadiness(url)
-	default:
-		return NewNullReadiness()
-	}
-}
-
 func startProxies(c *cli.Context) error {
 
 	config, err := loadConfig(c.String("config"))
@@ -123,7 +95,7 @@ func startProxies(c *cli.Context) error {
 	for _, proxy := range config.Proxies {
 		roundRobin := NewRoundrobin()
 		for _, backend := range proxy.Backends {
-			roundRobin.AddBackend(backend.Addr, backend.Readiness)
+			roundRobin.AddBackend(&backend)
 		}
 		proxyMgr.AddProxy(NewProxy(proxy.Name, proxy.Listen, roundRobin))
 	}

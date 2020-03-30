@@ -31,31 +31,6 @@ type Resolver struct {
 	hostIPs map[string]*addressWithCallback
 }
 
-func inStrArray(s string, a []string) bool {
-	for _, t := range a {
-		if t == s {
-			return true
-		}
-	}
-	return false
-}
-func strArraySub(a1 []string, a2 []string) []string {
-	r := make([]string, 0)
-	for _, s := range a1 {
-		if !inStrArray(s, a2) {
-			r = append(r, s)
-		}
-	}
-	return r
-}
-
-func isIPAddress(addr string) bool {
-	if strings.HasPrefix(addr, "[") && strings.HasSuffix(addr, "]") {
-		addr = addr[1 : len(addr)-1]
-	}
-	return net.ParseIP(addr) != nil
-}
-
 func NewResolver(interval int) *Resolver {
 	r := &Resolver{interval: time.Duration(interval) * time.Second,
 		stop:    0,

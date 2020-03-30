@@ -1,9 +1,8 @@
 package main
 
 import (
-	"encoding/json"
 	"github.com/gorilla/mux"
-	"io/ioutil"
+	"gopkg.in/yaml.v3"
 	"net/http"
 )
 
@@ -54,14 +53,13 @@ func (admin *Admin) processRemoveBackend(w http.ResponseWriter, r *http.Request)
 }
 
 func (admin *Admin) readProxyBackends(r *http.Request) (*ProxyBackends, error) {
-	b, err := ioutil.ReadAll(r.Body)
+	proxyBackends := &ProxyBackends{}
+	decoder := yaml.NewDecoder(r.Body)
+	err := decoder.Decode(proxyBackends)
 	if err != nil {
 		return nil, err
 	}
-	info := ProxyBackends{}
-	err = json.Unmarshal(b, &info)
-	return &info, err
-
+	return proxyBackends, nil
 }
 
 func (admin *Admin) processBackend(proxyBackends *ProxyBackends, proxyProcFunc func(proxy *Proxy, backend *BackendInfo)) {
@@ -78,7 +76,7 @@ func (admin *Admin) processBackend(proxyBackends *ProxyBackends, proxyProcFunc f
 
 func (admin *Admin) addBackend(proxyBackends *ProxyBackends) {
 	admin.processBackend(proxyBackends, func(proxy *Proxy, backend *BackendInfo) {
-		proxy.AddBackend(backend.Addr, backend.Readiness)
+		proxy.AddBackend(backend)
 	})
 }
 

@@ -3,30 +3,16 @@ package main
 import (
 	"errors"
 	log "github.com/sirupsen/logrus"
-	"strings"
 	"sync/atomic"
 )
 
 var noBackendAvailable error = errors.New("No backend is available")
 var failedAllBackends error = errors.New("Failed on all the backends")
 
-func splitAddr(addr string) (hostname string, port string, err error) {
-	pos := strings.LastIndex(addr, ":")
-	if pos == -1 {
-		err = errors.New("not a valid address")
-	} else {
-		hostname = addr[0:pos]
-		port = addr[pos+1:]
-		err = nil
-	}
-	return
-
-}
-
 // LoadBalancer
 type LoadBalancer interface {
-	// add a backend, the address is in ip:port format
-	AddBackend(addr string, readinessConf *ReadinessConf)
+	// add a backend
+	AddBackend(backendInfo *BackendInfo)
 
 	// remove previous added backend
 	RemoveBackend(addr string) error
@@ -50,28 +36,28 @@ func NewRoundrobin() *Roundrobin {
 }
 
 // AddBackend add a thrift backend server
-func (r *Roundrobin) AddBackend(addr string, readinessConf *ReadinessConf) {
-	hostname, _, err := splitAddr(addr)
+func (r *Roundrobin) AddBackend(backendInfo *BackendInfo) {
+	hostname, _, err := splitAddr(backendInfo.Addr)
 
 	if err != nil {
-		log.WithFields(log.Fields{"address": addr}).Error("Backend address is invalid")
+		log.WithFields(log.Fields{"address": backendInfo.Addr}).Error("Backend address is invalid")
 		return
 	}
 
-	log.WithFields(log.Fields{"address": addr}).Info("Add backend")
+	log.WithFields(log.Fields{"address": backendInfo.Addr}).Info("Add backend")
 
 	if !isIPAddress(hostname) {
-		r.resolver.ResolveHost(addr, func(hostname string, newAddrs []string, removedAddrs []string) {
-			r.resolvedAddrs(hostname, newAddrs, removedAddrs, readinessConf)
+		r.resolver.ResolveHost(backendInfo.Addr, func(hostname string, newAddrs []string, removedAddrs []string) {
+			r.resolvedAddrs(hostname, newAddrs, removedAddrs, backendInfo.Readiness)
 		})
-	} else if !r.backends.Exists(addr) {
-		r.backends.Add(NewBackend(addr, createReadiness(addr, readinessConf)))
+	} else if !r.backends.Exists(backendInfo.Addr) {
+		r.backends.Add(NewBackend(backendInfo.Addr, createReadiness(backendInfo.Addr, backendInfo.Readiness)))
 	}
 }
 
 func (r *Roundrobin) resolvedAddrs(hostname string, newAddrs []string, removedAddrs []string, readinessConf *ReadinessConf) {
 	for _, addr := range newAddrs {
-		r.AddBackend(addr, readinessConf)
+		r.AddBackend(&BackendInfo{Addr: addr, Readiness: readinessConf})
 	}
 	for _, addr := range removedAddrs {
 		r.RemoveBackend(addr)
