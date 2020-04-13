@@ -20,6 +20,9 @@ type LoadBalancer interface {
 
 	// send a message to thrift server
 	Send(msg *Message, requestTimeoutTime time.Time, callback ResponseCallback)
+
+	// get the backends
+	GetAllBackends() []Backend
 }
 
 // Roundrobin this class implements LoadBalancer interface
@@ -87,6 +90,10 @@ func (r *Roundrobin) RemoveBackend(addr string) error {
 		}
 		return err
 	}
+}
+
+func (r *Roundrobin) GetAllBackends() []Backend {
+	return r.backends.GetAll()
 }
 
 // Send send a request to one of thrift backend server

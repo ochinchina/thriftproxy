@@ -14,9 +14,9 @@ proxies:
           pauseTime: "5s"
       - addr: "127.0.0.1:9092"
         readiness:
-          protocol: tcp 
+          protocol: http
           port: 7892
-          path: /
+          path: /healthz
   - name: test-2
     listen: ":9020"
     backends:

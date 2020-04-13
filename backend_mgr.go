@@ -78,6 +78,16 @@ func (b *BackendMgr) Remove(addr string) (Backend, error) {
 
 }
 
+// GetAll get all the backend
+func (b *BackendMgr) GetAll() []Backend {
+	b.Lock()
+	defer b.Unlock()
+
+	r := make([]Backend, 0)
+	r = append(r, b.backends...)
+	return r
+}
+
 // getIndex get the index of backend by address
 func (b *BackendMgr) getIndex(addr string) (int, error) {
 	for index, backend := range b.backends {

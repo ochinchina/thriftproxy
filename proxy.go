@@ -37,6 +37,12 @@ func (p *ProxyMgr) GetProxy(name string) (*Proxy, error) {
 	return nil, errors.New("Fail to find proxy")
 }
 
+func (p *ProxyMgr) GetAllProxy() []*Proxy {
+	r := make([]*Proxy, 0)
+	r = append(r, p.proxies...)
+	return r
+}
+
 // Start start all the proxies
 func (p *ProxyMgr) Run() {
 	var wg sync.WaitGroup
@@ -105,12 +111,19 @@ func (p *Proxy) Run() {
 	}
 }
 
+func (p *Proxy) GetName() string {
+	return p.name
+}
 func (p *Proxy) AddBackend(backendInfo *BackendInfo) {
 	p.loadBalancer.AddBackend(backendInfo)
 }
 
 func (p *Proxy) RemoveBackend(addr string) {
 	p.loadBalancer.RemoveBackend(addr)
+}
+
+func (p *Proxy) GetAllBackends() []Backend {
+	return p.loadBalancer.GetAllBackends()
 }
 
 func (p *Proxy) addClient(client *Client) {

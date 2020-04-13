@@ -1,7 +1,9 @@
 package main
 
 import (
+	"encoding/json"
 	"github.com/gorilla/mux"
+	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
 	"net/http"
 )
@@ -22,8 +24,9 @@ func NewAdmin(addr string, proxyMgr *ProxyMgr) *Admin {
 	admin := &Admin{proxyMgr: proxyMgr}
 	admin.server.Addr = addr
 	router := mux.NewRouter()
-	router.HandleFunc("/addbackend", admin.processAddBackend)
-	router.HandleFunc("/removebackend", admin.processRemoveBackend)
+	router.HandleFunc("/backends/add", admin.processAddBackend)
+	router.HandleFunc("/backends/remove", admin.processRemoveBackend)
+	router.HandleFunc("/backends/list", admin.processGetBackends)
 	admin.server.Handler = router
 	return admin
 }
@@ -33,23 +36,59 @@ func (admin *Admin) Start() {
 }
 
 func (admin *Admin) processAddBackend(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusOK)
-
 	defer r.Body.Close()
 	proxyBackends, err := admin.readProxyBackends(r)
 	if err == nil {
 		admin.addBackend(proxyBackends)
+		w.WriteHeader(http.StatusOK)
+	} else {
+		w.WriteHeader(http.StatusBadRequest)
 	}
 }
 
 func (admin *Admin) processRemoveBackend(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusOK)
-
 	defer r.Body.Close()
 	proxyBackends, err := admin.readProxyBackends(r)
 	if err == nil {
 		admin.removeBackend(proxyBackends)
+		w.WriteHeader(http.StatusOK)
+	} else {
+		w.WriteHeader(http.StatusBadRequest)
 	}
+}
+
+func (admin *Admin) processGetBackends(w http.ResponseWriter, r *http.Request) {
+	result := admin.getAllBackends()
+	b, err := json.Marshal(result)
+	if err == nil {
+		w.WriteHeader(http.StatusOK)
+		w.Header().Add("Content-Type", "application/json")
+		w.Write(b)
+	} else {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Fail to encode the backends as json"))
+	}
+}
+
+func (admin *Admin) getAllBackends() map[string][]interface{} {
+	allProxy := admin.proxyMgr.GetAllProxy()
+	result := make(map[string][]interface{})
+	for _, proxy := range allProxy {
+		backends := make([]interface{}, 0)
+		for _, backend := range proxy.GetAllBackends() {
+			addr := backend.GetAddr()
+			connected := backend.IsConnected()
+			backendInfo := struct {
+				Addr      string
+				Connected bool
+			}{addr, connected}
+			backends = append(backends, &backendInfo)
+
+		}
+		result[proxy.GetName()] = backends
+	}
+	return result
+
 }
 
 func (admin *Admin) readProxyBackends(r *http.Request) (*ProxyBackends, error) {
@@ -69,6 +108,8 @@ func (admin *Admin) processBackend(proxyBackends *ProxyBackends, proxyProcFunc f
 			for _, backend := range proxyInfo.Backends {
 				proxyProcFunc(proxy, &backend)
 			}
+		} else {
+			log.WithFields(log.Fields{"proxy": proxyInfo.Name}).Error("fail to find the proxy by name")
 		}
 	}
 

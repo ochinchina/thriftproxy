@@ -30,6 +30,7 @@ func newRequestWithResponseCallback(request *Message,
 type Backend interface {
 	Send(request *Message, requestTimeoutTime time.Time, callback ResponseCallback)
 	GetAddr() string
+	IsConnected() bool
 	Stop()
 }
 
@@ -72,6 +73,10 @@ func (c *CircuitbreakBackend) Send(request *Message, requestTimeoutTime time.Tim
 
 func (c *CircuitbreakBackend) GetAddr() string {
 	return c.backend.GetAddr()
+}
+
+func (c *CircuitbreakBackend) IsConnected() bool {
+	return c.backend.IsConnected()
 }
 
 func (c *CircuitbreakBackend) Stop() {
@@ -177,7 +182,7 @@ func (b *TcpBackend) startReadMessage() {
 	}
 }
 
-func (b *TcpBackend) isConnected() bool {
+func (b *TcpBackend) IsConnected() bool {
 	return atomic.LoadInt32(&b.connected) != 0
 }
 
@@ -229,7 +234,7 @@ func (b *TcpBackend) IsStopped() bool {
 }
 
 func (b *TcpBackend) Send(request *Message, requestTimeoutTime time.Time, callback ResponseCallback) {
-	if !b.isConnected() {
+	if !b.IsConnected() {
 		callback(nil, notConnectedError)
 	} else {
 		b.requests <- newRequestWithResponseCallback(request, requestTimeoutTime, callback)
