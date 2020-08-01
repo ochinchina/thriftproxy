@@ -1,6 +1,9 @@
 ## thriftproxy
 
-This is a golang implemented proxy for thrift binary protocol over TCP/IP.
+This is a golang implemented proxy for thrift binary protocol over TCP/IP. The following picture shows the architecture of this thrift proxy:
+
+<img src="https://github.com/ochinchina/thriftproxy/blob/master/architecture.png" width="600x400">
+The client connects to the thrift proxy and thrift proxy will connect to backend thrift servers. The request to to the thrift proxy will be dispatched to backend servers in round-robin way.
 
 ## How to compile it
 
