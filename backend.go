@@ -255,7 +255,9 @@ func (b *TcpBackend) startWriteMessage() {
 				requestWithResponseCb.requestTimeoutTime)
 
 			err := requestWithResponseCb.request.Write(b.conn)
-			if err != nil {
+			if err == nil {
+				log.WithFields(log.Fields{"address": b.addr}).Info("Succeed to send request to backend server")
+			} else {
 				log.WithFields(log.Fields{"address": b.addr}).Error("Fail to send the request to backend server")
 				requestWithResponseCb.responseCallback(nil, err)
 				return

@@ -1,10 +1,13 @@
 package main
 
 import (
+	"github.com/gorilla/mux"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 	"gopkg.in/natefinch/lumberjack.v2"
 	"gopkg.in/yaml.v3"
+	"net/http"
 	"os"
 	"runtime"
 	"time"
@@ -56,6 +59,9 @@ type ProxiesConfigure struct {
 	Admin struct {
 		Addr string
 	}
+	Metrics struct {
+		Addr string
+	}
 	Proxies []struct {
 		Name           string
 		Listen         string
@@ -83,6 +89,15 @@ func loadConfig(fileName string) (*ProxiesConfigure, error) {
 
 }
 
+func startMetrics(addr string) {
+	var server http.Server
+	server.Addr = addr
+	router := mux.NewRouter()
+	router.Handle("/metrics", promhttp.Handler())
+	server.Handler = router
+	go server.ListenAndServe()
+
+}
 func startProxies(c *cli.Context) error {
 
 	config, err := loadConfig(c.String("config"))
@@ -107,6 +122,7 @@ func startProxies(c *cli.Context) error {
 	}
 
 	admin.Start()
+	startMetrics(config.Metrics.Addr)
 
 	proxyMgr.Run()
 

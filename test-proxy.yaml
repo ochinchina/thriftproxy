@@ -1,5 +1,7 @@
 admin:
   addr: ":7890"
+metrics:
+        addr: ":9090"
 proxies:
   - name: test-1 
     listen: ":9090"
