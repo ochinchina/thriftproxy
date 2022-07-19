@@ -13,10 +13,22 @@ import (
 	"time"
 )
 
+func createJSONFormatter() *log.JSONFormatter {
+	return &log.JSONFormatter{
+		FieldMap: log.FieldMap{
+			log.FieldKeyTime:  "timestamp",
+			log.FieldKeyLevel: "level",
+			log.FieldKeyMsg:   "message",
+		},
+	}
+
+}
 func init() {
 	log.SetOutput(os.Stdout)
 
-	if runtime.GOOS == "windows" {
+	if os.Getenv("LOG_FORMAT") == "json" {
+		log.SetFormatter(createJSONFormatter())
+	} else if runtime.GOOS == "windows" {
 		log.SetFormatter(&log.TextFormatter{DisableColors: true, FullTimestamp: true})
 	} else {
 		log.SetFormatter(&log.TextFormatter{DisableColors: false, FullTimestamp: true})
@@ -25,10 +37,13 @@ func init() {
 	log.SetLevel(log.DebugLevel)
 }
 
-func initLog(logFile string, strLevel string, logSize int, backups int) {
+func initLog(logFile string, logFormat string, strLevel string, logSize int, backups int) {
 	level, err := log.ParseLevel(strLevel)
 	if err != nil {
 		level = log.InfoLevel
+	}
+	if logFormat == "json" {
+		log.SetFormatter(createJSONFormatter())
 	}
 	log.SetLevel(level)
 	if len(logFile) <= 0 {
@@ -107,9 +122,10 @@ func startProxies(c *cli.Context) error {
 	}
 	strLevel := c.String("log-level")
 	fileName := c.String("log-file")
+	logFormat := c.String("log-format")
 	logSize := c.Int("log-size")
 	backups := c.Int("log-backups")
-	initLog(fileName, strLevel, logSize, backups)
+	initLog(fileName, logFormat, strLevel, logSize, backups)
 	proxyMgr := NewProxyMgr()
 	admin := NewAdmin(config.Admin.Addr, proxyMgr)
 	defTimeout := time.Duration(60) * time.Second
@@ -143,6 +159,10 @@ func main() {
 			&cli.StringFlag{
 				Name:  "log-file",
 				Usage: "log file name",
+			},
+			&cli.StringFlag{
+				Name:  "log-format",
+				Usage: "log file format: text, json",
 			},
 			&cli.StringFlag{
 				Name:  "log-level",
