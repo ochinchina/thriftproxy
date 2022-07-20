@@ -24,17 +24,8 @@ func createJSONFormatter() *log.JSONFormatter {
 
 }
 func init() {
-	log.SetOutput(os.Stdout)
-
-	if os.Getenv("LOG_FORMAT") == "json" {
-		log.SetFormatter(createJSONFormatter())
-	} else if runtime.GOOS == "windows" {
-		log.SetFormatter(&log.TextFormatter{DisableColors: true, FullTimestamp: true})
-	} else {
-		log.SetFormatter(&log.TextFormatter{DisableColors: false, FullTimestamp: true})
-	}
-
-	log.SetLevel(log.DebugLevel)
+        os.Getenv("LOG_FORMAT")
+	initLog("", os.Getenv("LOG_FORMAT"), "Info", 50*1024*1024, 10)
 }
 
 func initLog(logFile string, logFormat string, strLevel string, logSize int, backups int) {
@@ -44,6 +35,13 @@ func initLog(logFile string, logFormat string, strLevel string, logSize int, bac
 	}
 	if logFormat == "json" {
 		log.SetFormatter(createJSONFormatter())
+	} else {
+		if runtime.GOOS == "windows" {
+			log.SetFormatter(&log.TextFormatter{DisableColors: true, FullTimestamp: true})
+		} else {
+			log.SetFormatter(&log.TextFormatter{DisableColors: false, FullTimestamp: true})
+		}
+
 	}
 	log.SetLevel(level)
 	if len(logFile) <= 0 {
