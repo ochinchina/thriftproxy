@@ -21,11 +21,21 @@ func createJSONFormatter() *log.JSONFormatter {
 			log.FieldKeyMsg:   "message",
 		},
 	}
-
 }
+
+func getLogFormat(logFormat string) string {
+	if len(logFormat) > 0 {
+		return logFormat
+	}
+	t := os.Getenv("LOG_FORMAT")
+	if len(t) > 0 {
+		return t
+	}
+	return logFormat
+}
+
 func init() {
-        os.Getenv("LOG_FORMAT")
-	initLog("", os.Getenv("LOG_FORMAT"), "Info", 50*1024*1024, 10)
+	initLog("", getLogFormat(""), "Info", 50*1024*1024, 10)
 }
 
 func initLog(logFile string, logFormat string, strLevel string, logSize int, backups int) {
@@ -120,7 +130,7 @@ func startProxies(c *cli.Context) error {
 	}
 	strLevel := c.String("log-level")
 	fileName := c.String("log-file")
-	logFormat := c.String("log-format")
+	logFormat := getLogFormat(c.String("log-format"))
 	logSize := c.Int("log-size")
 	backups := c.Int("log-backups")
 	initLog(fileName, logFormat, strLevel, logSize, backups)
