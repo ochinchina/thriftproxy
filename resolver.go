@@ -164,10 +164,10 @@ func (r *Resolver) addressResolved(hostname string, addrs []string, err error) {
 	defer r.Unlock()
 	if entry, ok := r.hostIPs[hostname]; ok {
 		if err == nil {
-			removedAddrs := entry.cleanExpiredAddrs()
 			oldAddrs := entry.getAddrs()
 			entry.addAddrs(addrs)
 			newAddrs := strArraySub(addrs, oldAddrs)
+                        removedAddrs := entry.cleanExpiredAddrs()
 			if len(newAddrs) > 0 || len(removedAddrs) > 0 {
 				log.WithFields(log.Fields{"hostname": hostname, "newAddrs": strings.Join(newAddrs, ","), "removedAddrs": strings.Join(removedAddrs, ",")}).Info("the ip address of host is changed")
 				go entry.callback(hostname, newAddrs, removedAddrs)
