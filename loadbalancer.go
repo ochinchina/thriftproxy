@@ -29,7 +29,7 @@ type LoadBalancer interface {
 type Roundrobin struct {
 	resolver    *Resolver
 	backends    *BackendMgr
-	nextBackend int32
+	nextBackend uint32
 }
 
 // NewRoundrobin create a Roundrobin object
@@ -98,16 +98,16 @@ func (r *Roundrobin) GetAllBackends() []Backend {
 
 // Send send a request to one of thrift backend server
 func (r *Roundrobin) Send(request *Message, requestTimeoutTime time.Time, callback ResponseCallback) {
-	n := int32(r.backends.Size())
+	n := uint32(r.backends.Size())
 	if n <= 0 {
 		callback(nil, noBackendAvailable)
 	} else {
-		index := atomic.AddInt32(&r.nextBackend, int32(1)) % n
+		index := atomic.AddUint32(&r.nextBackend, uint32(1)) % n
 		r.sendTo(request, requestTimeoutTime, index, n, n, callback)
 	}
 }
 
-func (r *Roundrobin) sendTo(request *Message, requestTimeoutTime time.Time, index int32, leftTimes int32, total int32, callback ResponseCallback) {
+func (r *Roundrobin) sendTo(request *Message, requestTimeoutTime time.Time, index uint32, leftTimes uint32, total uint32, callback ResponseCallback) {
 	if leftTimes <= 0 {
 		callback(nil, failedAllBackends)
 	} else {
