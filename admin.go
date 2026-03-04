@@ -2,10 +2,12 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
+	"net/http"
+
 	"github.com/gorilla/mux"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
-	"net/http"
 )
 
 type Admin struct {
@@ -27,6 +29,7 @@ func NewAdmin(addr string, proxyMgr *ProxyMgr) *Admin {
 	router.HandleFunc("/backends/add", admin.processAddBackend)
 	router.HandleFunc("/backends/remove", admin.processRemoveBackend)
 	router.HandleFunc("/backends/list", admin.processGetBackends)
+	router.HandleFunc("/loglevel", admin.processLogLevel)
 	admin.server.Handler = router
 	return admin
 }
@@ -70,6 +73,28 @@ func (admin *Admin) processGetBackends(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (admin *Admin) processLogLevel(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+
+	switch r.Method {
+	case http.MethodGet:
+		level := log.GetLevel()
+		w.WriteHeader(http.StatusOK)
+		w.Header().Add("Content-Type", "text/plain")
+		fmt.Fprintf(w, "log level is %s", level.String())
+	case http.MethodPost, http.MethodPut:
+		level := r.FormValue("level")
+		l, err := log.ParseLevel(level)
+		if err == nil {
+			log.SetLevel(l)
+			w.WriteHeader(http.StatusOK)
+			fmt.Fprintf(w, "Succeed to change the log level to %s", l.String())
+		} else {
+			w.WriteHeader(http.StatusBadRequest)
+			fmt.Fprintf(w, "Fail to parse the log level %s", level)
+		}
+	}
+}
 func (admin *Admin) getAllBackends() map[string][]interface{} {
 	allProxy := admin.proxyMgr.GetAllProxy()
 	result := make(map[string][]interface{})
@@ -126,3 +151,4 @@ func (admin *Admin) removeBackend(proxyBackends *ProxyBackends) {
 		proxy.RemoveBackend(backend.Addr)
 	})
 }
+
